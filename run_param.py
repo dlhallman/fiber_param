@@ -141,10 +141,6 @@ uq_params.add_argument('--device', type=str, default='cpu',
 
 args, unknown = parser.parse_known_args()
 
-# Load parameters
-# Should probably go into datasets.py but I'm going to leave this here
-# parameters = np.load('./data/FIB_param.npz')['arr_0']
-
 
 if args.verbose:
     print('Parsed Arguments')
@@ -166,10 +162,10 @@ if device == 'cuda':
 param = PARAM_DATASET(args)
 
 # Check out an animation of the data - random parameters
-samples = random.sample(range(0,len(param.data_init)),4)
-mofo = param.data_init[[1,2,93,94],:,:]
-# data_animation(mofo,args)
-print('Done animating')
+# samples = random.sample(range(0,len(param.data_init)),4)
+# mofo = param.data_init[[1,2,93,94],:,:]
+# # data_animation(mofo,args)
+# print('Done animating')
 
 
 MODELS = {'NODE' : NMODEL(args),'HBNODE' : HBMODEL(args, res=True, cont=True), 'GHBNODE' : GHBMODEL(args, res=True, cont=True)}
