@@ -163,7 +163,14 @@ class NMODEL(nn.Module):
         self.outlayer = tempout(nhid, modes)
     def forward(self, t, x, mu):
         #out = self.ode_rnn(t, x, mu, retain_grad=True)[0]
-        out = odeint(self.cell, torch.cat([x, mu]), t)
+        # x is a 3D (time, batch, modes) = (150, 10, 4) tensor
+        # mu is a 2D (batch, num_params) = (10, 2) tensor
+        # to concatenate x and mu, make mu into a (time, batch, num_params) tensor
+        # concatenation will yield a (150, 10, 4+2) tensor
+        
+        mu = mu[None, :, :] # Add dummy dimension
+        mu = torch.repeat_interleave(mu, x.size(0), dim=0) # repeat mu many times to match size of x for concatenation
+        out = odeint(self.cell, torch.cat([x, mu], dim=2), t[:,0])
         out = self.outlayer(out)[:-1] # Linear Decoding
         return out
 
