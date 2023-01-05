@@ -196,6 +196,11 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
                 factor=args.factor, patience=5, verbose=False, threshold=1e-5,
                 threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
 
+# make training times
+times = torch.linspace(0,60,args.tstop)
+train_times = times[:args.tr_ind]
+valid_times = times[args.tr_ind+1:]
+
 # TRAINING
 print('Training ... \t Iterations: {}'.format(args.epochs))
 epochs = trange(1,args.epochs+1)
@@ -214,7 +219,7 @@ for epoch in epochs:
     for b_n in range(0, param.train_data.shape[1], batchsize):
         # model.cell.nfe = 0
         model.nfe = 0
-        predict = model(param.train_times[:, b_n:b_n + batchsize], param.train_data[:, b_n:b_n + batchsize], param.param_train[b_n:b_n+batchsize])
+        predict = model(train_times, param.train_data[:, b_n:b_n + batchsize], param.param_train[b_n:b_n+batchsize])
         loss = criteria(predict, param.train_label[:, b_n:b_n + batchsize])
         loss_meter_t.update(loss.item())
         rec['tr_loss'] = loss
@@ -241,7 +246,7 @@ for epoch in epochs:
     #VALIDATION
     if epoch == 0 or (epoch + 1) % 1 == 0:
         model.cell.nfe = 0
-        predict = model(param.valid_times, param.valid_data, param.param_valid)
+        predict = model(valid_times, param.valid_data, param.param_valid)
         vloss = criteria(predict, param.valid_label)
         rec['val_nfe'] = model.cell.nfe
         rec['val_loss'] = vloss

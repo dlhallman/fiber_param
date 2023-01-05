@@ -87,8 +87,9 @@ class tempf(nn.Module):
         self.actv = nn.Sigmoid()
         self.A = nn.Linear(in_channels, out_channels,bias=False)
         self.b = nn.Linear(2, out_channels, bias=False)
-    def forward(self, h, x, mu):
-        out = self.A(x) + self.b(mu)
+    def forward(self, h, x):
+        # out = self.A(x) + self.b(mu)
+        out = self.A(x) # this has mu concatenated into it
         #out = self.actv(out)
         return out
 
@@ -157,7 +158,7 @@ class NMODEL(nn.Module):
         super(NMODEL, self).__init__()
         modes = args.modes
         nhid = modes*2
-        self.cell = NODE(tempf(nhid+2, nhid))
+        self.cell = NODE(tempf(nhid-2, nhid-2))
         #self.rnn = nodernn(modes, nhid, nhid)
         #self.ode_rnn = ODE_RNN_with_Grad_Listener(self.cell, self.rnn, nhid, None, rnn_out=True, tol=1e-7)
         self.outlayer = tempout(nhid, modes)
@@ -170,7 +171,8 @@ class NMODEL(nn.Module):
         
         mu = mu[None, :, :] # Add dummy dimension
         mu = torch.repeat_interleave(mu, x.size(0), dim=0) # repeat mu many times to match size of x for concatenation
-        out = odeint(self.cell, torch.cat([x, mu], dim=2), t[:,0])
+        out = odeint(self.cell, torch.cat([x, mu], dim=2), t)
+        # out = odeint(self.cell, x, t)
         out = self.outlayer(out)[:-1] # Linear Decoding
         return out
 
