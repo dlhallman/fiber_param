@@ -82,7 +82,7 @@ parser = argparse.ArgumentParser(prefix_chars='-+/',
 data_parser = parser.add_argument_group('Data Parameters')
 data_parser.add_argument('--data_dir', type=str, default='./data/FIB.npz',
                     help='Directory of data from cwd: sci.')
-data_parser.add_argument('--out_dir', type=str, default='./out/fib/',
+data_parser.add_argument('--out_dir', type=str, default='./out/fib',
                     help='Directory for saving data.')
 data_parser.add_argument('--tr_ind', type = int, default=150,
                     help='Time index for training data.')
@@ -186,7 +186,8 @@ if args.verbose:
     print('Number of Parameters: {}'.format(count_parameters(model)))
 
 #LEARNING UTILITIES
-gradrec = True
+gradrec = None
+# gradrec = True # This causes an error at line 234 because NMODEL has no ode_rnn
 torch.manual_seed(0)
 rec = Recorder()
 criteria = nn.MSELoss()
@@ -261,10 +262,11 @@ for epoch in epochs:
 #        rec['ts_loss'] = sloss
 
     #OUTPUT
-    rec.capture(verbose=False)
-    if (epoch + 1) % 5 == 0:
-        torch.save(model, args.out_dir+'/pth/{}.mdl'.format(args.model))
-        rec.writecsv(args.out_dir+'/pth/{}.csv'.format(args.model))
+    # rec.capture(verbose=False)
+    # if (epoch + 1) % 5 == 0:
+    #     torch.save(model, args.out_dir+'/pth/{}.mdl'.format(args.model))
+    #     rec.writecsv(args.out_dir+'/pth/{}.csv'.format(args.model))
+        
 print("Generating Output ... ")
 rec_file = args.out_dir+ './pth/'+args.model+'.csv'
 rec.writecsv(rec_file)

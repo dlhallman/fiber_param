@@ -158,10 +158,10 @@ class NMODEL(nn.Module):
         super(NMODEL, self).__init__()
         modes = args.modes
         nhid = modes*2
-        self.cell = NODE(tempf(nhid-2, nhid-2))
+        self.cell = NODE(tempf(nhid-2, nhid-2)) #nhid-2 = 6 which matches the dimension of torch.cat([x, mu])...
         #self.rnn = nodernn(modes, nhid, nhid)
         #self.ode_rnn = ODE_RNN_with_Grad_Listener(self.cell, self.rnn, nhid, None, rnn_out=True, tol=1e-7)
-        self.outlayer = tempout(nhid, modes)
+        self.outlayer = tempout(nhid-2, modes)
     def forward(self, t, x, mu):
         #out = self.ode_rnn(t, x, mu, retain_grad=True)[0]
         # x is a 3D (time, batch, modes) = (150, 10, 4) tensor
@@ -171,7 +171,7 @@ class NMODEL(nn.Module):
         
         mu = mu[None, :, :] # Add dummy dimension
         mu = torch.repeat_interleave(mu, x.size(0), dim=0) # repeat mu many times to match size of x for concatenation
-        out = odeint(self.cell, torch.cat([x, mu], dim=2), t)
+        out = odeint(self.cell, torch.cat([x, mu], dim=2), t) # output is (150, 150, 10, 6) is this right??
         # out = odeint(self.cell, x, t)
         out = self.outlayer(out)[:-1] # Linear Decoding
         return out
