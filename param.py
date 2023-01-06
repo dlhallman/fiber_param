@@ -55,8 +55,9 @@ class temprnn(nn.Module):
         out = self.actv(out)
         out = self.dense3(out).reshape(h.shape)
         out2 = self.dense4(mu)
-        out = out + out2
-        #NOT WORKING YET
+        # not working yet
+        # out = out + out2
+        #Comment for first commit
         return out
 
 class nodernn(nn.Module):
@@ -84,10 +85,12 @@ class tempf(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.actv = nn.Sigmoid()
-        self.dense1 = nn.Linear(in_channels, out_channels)
+        self.A = nn.Linear(in_channels, out_channels,bias=False)
+        self.b = nn.Linear(2, out_channels, bias=False)
     def forward(self, h, x):
-        out = self.dense1(x)
-        out = self.actv(out)
+        # out = self.A(x) + self.b(mu)
+        out = self.A(x) # this has mu concatenated into it
+        #out = self.actv(out)
         return out
 
 class tempout(nn.Module):
@@ -155,13 +158,22 @@ class NMODEL(nn.Module):
         super(NMODEL, self).__init__()
         modes = args.modes
         nhid = modes*2
-        self.cell = NODE(tempf(nhid, nhid))
-        self.rnn = nodernn(modes, nhid, nhid)
-        self.ode_rnn = ODE_RNN_with_Grad_Listener(self.cell, self.rnn, nhid, None, rnn_out=True, tol=1e-7)
-        self.outlayer = tempout(nhid, modes)
+        self.cell = NODE(tempf(nhid-2, nhid-2)) #nhid-2 = 6 which matches the dimension of torch.cat([x, mu])...
+        #self.rnn = nodernn(modes, nhid, nhid)
+        #self.ode_rnn = ODE_RNN_with_Grad_Listener(self.cell, self.rnn, nhid, None, rnn_out=True, tol=1e-7)
+        self.outlayer = tempout(nhid-2, modes)
     def forward(self, t, x, mu):
-        out = self.ode_rnn(t, x, mu, retain_grad=True)[0]
-        out = self.outlayer(out)[:-1]
+        #out = self.ode_rnn(t, x, mu, retain_grad=True)[0]
+        # x is a 3D (time, batch, modes) = (150, 10, 4) tensor
+        # mu is a 2D (batch, num_params) = (10, 2) tensor
+        # to concatenate x and mu, make mu into a (time, batch, num_params) tensor
+        # concatenation will yield a (150, 10, 4+2) tensor
+        
+        mu = mu[None, :, :] # Add dummy dimension
+        mu = torch.repeat_interleave(mu, x.size(0), dim=0) # repeat mu many times to match size of x for concatenation
+        out = odeint(self.cell, torch.cat([x, mu], dim=2), t) # output is (150, 150, 10, 6) is this right??
+        # out = odeint(self.cell, x, t)
+        out = self.outlayer(out)[:-1] # Linear Decoding
         return out
 
 class HBMODEL(nn.Module):

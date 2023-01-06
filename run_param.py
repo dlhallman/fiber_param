@@ -82,7 +82,7 @@ parser = argparse.ArgumentParser(prefix_chars='-+/',
 data_parser = parser.add_argument_group('Data Parameters')
 data_parser.add_argument('--data_dir', type=str, default='./data/FIB.npz',
                     help='Directory of data from cwd: sci.')
-data_parser.add_argument('--out_dir', type=str, default='./out/fib/',
+data_parser.add_argument('--out_dir', type=str, default='./out/fib',
                     help='Directory for saving data.')
 data_parser.add_argument('--tr_ind', type = int, default=150,
                     help='Time index for training data.')
@@ -141,10 +141,6 @@ uq_params.add_argument('--device', type=str, default='cpu',
 
 args, unknown = parser.parse_known_args()
 
-# Load parameters
-# Should probably go into datasets.py but I'm going to leave this here
-# parameters = np.load('./data/FIB_param.npz')['arr_0']
-
 
 if args.verbose:
     print('Parsed Arguments')
@@ -166,10 +162,10 @@ if device == 'cuda':
 param = PARAM_DATASET(args)
 
 # Check out an animation of the data - random parameters
-samples = random.sample(range(0,len(param.data_init)),4)
-mofo = param.data_init[[1,2,93,94],:,:]
-# data_animation(mofo,args)
-print('Done animating')
+# samples = random.sample(range(0,len(param.data_init)),4)
+# mofo = param.data_init[[1,2,93,94],:,:]
+# # data_animation(mofo,args)
+# print('Done animating')
 
 
 MODELS = {'NODE' : NMODEL(args),'HBNODE' : HBMODEL(args, res=True, cont=True), 'GHBNODE' : GHBMODEL(args, res=True, cont=True)}
@@ -190,7 +186,8 @@ if args.verbose:
     print('Number of Parameters: {}'.format(count_parameters(model)))
 
 #LEARNING UTILITIES
-gradrec = True
+gradrec = None
+# gradrec = True # This causes an error at line 234 because NMODEL has no ode_rnn
 torch.manual_seed(0)
 rec = Recorder()
 criteria = nn.MSELoss()
@@ -199,6 +196,11 @@ loss_meter_t = RunningAverageMeter()
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
                 factor=args.factor, patience=5, verbose=False, threshold=1e-5,
                 threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
+
+# make training times
+times = torch.linspace(0,60,args.tstop)
+train_times = times[:args.tr_ind]
+valid_times = times[args.tr_ind+1:]
 
 # TRAINING
 print('Training ... \t Iterations: {}'.format(args.epochs))
@@ -218,7 +220,7 @@ for epoch in epochs:
     for b_n in range(0, param.train_data.shape[1], batchsize):
         # model.cell.nfe = 0
         model.nfe = 0
-        predict = model(param.train_times[:, b_n:b_n + batchsize], param.train_data[:, b_n:b_n + batchsize], param.param_train[b_n:b_n+batchsize])
+        predict = model(train_times, param.train_data[:, b_n:b_n + batchsize], param.param_train[b_n:b_n+batchsize])
         loss = criteria(predict, param.train_label[:, b_n:b_n + batchsize])
         loss_meter_t.update(loss.item())
         rec['tr_loss'] = loss
@@ -245,7 +247,7 @@ for epoch in epochs:
     #VALIDATION
     if epoch == 0 or (epoch + 1) % 1 == 0:
         model.cell.nfe = 0
-        predict = model(param.valid_times, param.valid_data, param.param_valid)
+        predict = model(valid_times, param.valid_data, param.param_valid)
         vloss = criteria(predict, param.valid_label)
         rec['val_nfe'] = model.cell.nfe
         rec['val_loss'] = vloss
@@ -260,10 +262,11 @@ for epoch in epochs:
 #        rec['ts_loss'] = sloss
 
     #OUTPUT
-    rec.capture(verbose=False)
-    if (epoch + 1) % 5 == 0:
-        torch.save(model, args.out_dir+'/pth/{}.mdl'.format(args.model))
-        rec.writecsv(args.out_dir+'/pth/{}.csv'.format(args.model))
+    # rec.capture(verbose=False)
+    # if (epoch + 1) % 5 == 0:
+    #     torch.save(model, args.out_dir+'/pth/{}.mdl'.format(args.model))
+    #     rec.writecsv(args.out_dir+'/pth/{}.csv'.format(args.model))
+        
 print("Generating Output ... ")
 rec_file = args.out_dir+ './pth/'+args.model+'.csv'
 rec.writecsv(rec_file)
